@@ -1,0 +1,12 @@
+[Unit]
+Description=Superlender API
+After=network.target
+
+[Service]
+User=<your_username>
+Group=<your_groupname>
+ExecStart=/home/samwel/Public/GoLang/superlender/super-lender
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

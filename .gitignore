@@ -1,0 +1,25 @@
+# Compiled binary files
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Output directories
+/bin/
+/pkg/
+/vendor/
+
+# Dependency directories
+/vendor/
+/go.sum
+
+# IDE or editor-specific files
+.idea/
+.vscode/
+
+# Environment configuration files
+.env
+
+# Log files
+*.log
