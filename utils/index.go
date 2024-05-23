@@ -15,6 +15,7 @@ import (
 	"super-lender/inits"
 	"super-lender/models"
 	"time"
+	"unicode"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator"
@@ -389,37 +390,37 @@ func LogEvent(tbl string, fld int, eventDetails string, eventBy int) {
 	}
 }
 
-func CreateChangesLog(referencingEntity string, affectedEnitityName string, directAffectedEntityUID int, inDirectAffectedEntityUID int, action string, originalData interface{}, newData interface{}, user models.OUser, ignoredFields []string) {
+func CreateChangesLog(action, secAffectedTable, primaryAffectedEntityName string, primaryAffectedEntityID, secAffectedEntityID int, originalData, newData interface{}, user models.OUser, ignoredFields []string) {
 	// Identify modified fields for update action
 	var modifiedFields map[string]map[string]interface{}
 	var eventDetails string
 
 	switch action {
-	case "Update":
+	case "update":
 		modifiedFields = IdentifyModifiedFields(originalData, newData, ignoredFields)
-		eventDetails = GenerateEventDetails("Update", affectedEnitityName, inDirectAffectedEntityUID, modifiedFields, user)
-	case "Delete":
+		eventDetails = GenerateEventDetails("update", primaryAffectedEntityName, primaryAffectedEntityID, secAffectedEntityID, modifiedFields, user)
+	case "delete":
 		// Handle delete action, if needed
-		eventDetails = fmt.Sprintf("Deletion of %s(%v) done by %s(%s)(UID: %d)", affectedEnitityName, directAffectedEntityUID, user.Name, user.Email, user.UID)
+		eventDetails = fmt.Sprintf("Deletion of %s(%v) triggered by %s(%s)(UID: %d)", primaryAffectedEntityName, primaryAffectedEntityID, user.Name, user.Email, user.UID)
 	default:
 		fmt.Println("Unsupported action")
 		return
 	}
 
-	LogEvent(referencingEntity, inDirectAffectedEntityUID, eventDetails, user.UID)
+	LogEvent(secAffectedTable, secAffectedEntityID, eventDetails, user.UID)
 }
 
-func GenerateEventDetails(action string, affectedEnitityName string, directAffectedEntityUID int, modifiedFields map[string]map[string]interface{}, user models.OUser) string {
-	if action == "Update" && len(modifiedFields) > 0 {
+func GenerateEventDetails(action string, primaryAffectedEntityName string, primaryAffectedEntityID, secAffectedEntityID int, modifiedFields map[string]map[string]interface{}, user models.OUser) string {
+	if action == "update" && len(modifiedFields) > 0 {
 		var logMessages []string
 		for fieldName, values := range modifiedFields {
 			oldVal := values["old"]
 			newVal := values["new"]
 			logMessages = append(logMessages, fmt.Sprintf("%s from %+v to %+v", fieldName, oldVal, newVal))
 		}
-		return fmt.Sprintf("%s of %s(%v) done by [%s(%s)(%d)]. Changes: %s", action, affectedEnitityName, directAffectedEntityUID, user.Name, user.Email, user.UID, strings.Join(logMessages, ", "))
+		return fmt.Sprintf("%s(%v) %s triggered by [%s(%s)(%d)]. Changes: %s", primaryAffectedEntityName, primaryAffectedEntityID, action, user.Name, user.Email, user.UID, strings.Join(logMessages, ", "))
 	}
-	return fmt.Sprintf("%s triggered by [%s(%s)(%d)]. No values were modified", action, user.Name, user.Email, user.UID)
+	return fmt.Sprintf("%s(%v) %s triggered by [%s(%s)(%d)]. No values were modified", primaryAffectedEntityName, primaryAffectedEntityID, action, user.Name, user.Email, user.UID)
 }
 
 func AreEqual(a, b interface{}) bool {
@@ -579,4 +580,28 @@ func TruncateString(input string, length int) string {
 		return input
 	}
 	return input[:length]
+}
+
+func PascalCaseToSeparatedWords(input string) string {
+	var words []string
+	var currentWord string
+
+	for i, char := range input {
+		if i == 0 {
+			currentWord += string(unicode.ToLower(char))
+		} else {
+			if unicode.IsUpper(char) {
+				words = append(words, currentWord)
+				currentWord = string(unicode.ToLower(char))
+			} else {
+				currentWord += string(char)
+			}
+		}
+	}
+
+	if len(currentWord) > 0 {
+		words = append(words, currentWord)
+	}
+
+	return strings.Join(words, " ")
 }

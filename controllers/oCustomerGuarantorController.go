@@ -2,10 +2,7 @@ package controllers
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
-	"strconv"
-	"strings"
 	"super-lender/inits"
 	"super-lender/models"
 	"super-lender/schemas"
@@ -62,7 +59,7 @@ func GetCustomerGuarantor(c *gin.Context) {
 
 func CreateCustomerGuarantor(c *gin.Context) {
 
-	var customerGuarantorInput schemas.CreateCustomerGuarantorSchema
+	var customerGuarantorInput models.OCustomerGuarantor
 	if err := c.ShouldBindJSON(&customerGuarantorInput); err != nil {
 		var ve validator.ValidationErrors
 		if errors.As(err, &ve) {
@@ -94,9 +91,13 @@ func CreateCustomerGuarantor(c *gin.Context) {
 	// set db connection
 	db := inits.CurrentDB
 	guarantorName := utils.TrimString(customerGuarantorInput.GuarantorName)
+	customerGuarantorInput.GuarantorName = guarantorName
 	mobileNo := utils.MakePhoneValid(customerGuarantorInput.MobileNo)
+	customerGuarantorInput.MobileNo = mobileNo
 	nationalId := utils.TrimString(customerGuarantorInput.NationalId)
+	customerGuarantorInput.NationalId = nationalId
 	physicalAddress := utils.TrimString(customerGuarantorInput.PhysicalAddress)
+	customerGuarantorInput.PhysicalAddress = physicalAddress
 
 	// validate mobile number
 	if !utils.IsPhoneValid(mobileNo) {
@@ -134,19 +135,9 @@ func CreateCustomerGuarantor(c *gin.Context) {
 		return
 	}
 
-	// Create customer guarantor
-	customerGuarantor := models.OCustomerGuarantor{
-		GuarantorName:    guarantorName,
-		CustomerId:       customerGuarantorInput.CustomerId,
-		MobileNo:         mobileNo,
-		NationalId:       nationalId,
-		PhysicalAddress:  physicalAddress,
-		AmountGuaranteed: customerGuarantorInput.AmountGuaranteed,
-		AddedDate:        time.Now().Format("2006-01-02 15:04:05"),
-		Relationship:     customerGuarantorInput.Relationship,
-	}
-
-	if err := db.Create(&customerGuarantor).Error; err != nil {
+	// parse dynamic fields
+	customerGuarantorInput.AddedDate = time.Now().Format("2006-01-02 15:04:05")
+	if err := db.Create(&customerGuarantorInput).Error; err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"message": "Internal Server Error",
 		})
@@ -155,14 +146,14 @@ func CreateCustomerGuarantor(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":   "Customer guarantor created successfully",
-		"guarantor": customerGuarantor,
+		"guarantor": customerGuarantorInput,
 	})
 
 }
 
 func UpdateCustomerGuarantor(c *gin.Context) {
 
-	var customerGuarantorInput schemas.UpdateCustomerGuarantorSchema
+	var customerGuarantorInput models.OCustomerGuarantor
 	if err := c.ShouldBindJSON(&customerGuarantorInput); err != nil {
 		var ve validator.ValidationErrors
 		if errors.As(err, &ve) {
@@ -196,11 +187,12 @@ func UpdateCustomerGuarantor(c *gin.Context) {
 
 	// Trim and validate input data
 	guarantorName := utils.TrimString(customerGuarantorInput.GuarantorName)
+	customerGuarantorInput.GuarantorName = guarantorName
 	mobileNo := utils.MakePhoneValid(customerGuarantorInput.MobileNo)
+	customerGuarantorInput.MobileNo = mobileNo
 	nationalId := utils.TrimString(customerGuarantorInput.NationalId)
 	physicalAddress := utils.TrimString(customerGuarantorInput.PhysicalAddress)
-	relationship := utils.TrimInt(strconv.Itoa(customerGuarantorInput.Relationship))
-	status := utils.TrimInt(strconv.Itoa(customerGuarantorInput.Status))
+	customerGuarantorInput.PhysicalAddress = physicalAddress
 
 	if !utils.IsPhoneValid(mobileNo) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -238,7 +230,7 @@ func UpdateCustomerGuarantor(c *gin.Context) {
 	}
 
 	// Get the original guarantor details
-	var originalGuarantor schemas.UpdateCustomerGuarantorSchema
+	var originalGuarantor models.OCustomerGuarantor
 	if err := db.Model(&models.OCustomerGuarantor{}).Where("uid = ?", customerGuarantorInput.UID).
 		Select("guarantor_name, customer_id, national_id, mobile_no, physical_address, amount_guaranteed, relationship, status").
 		First(&originalGuarantor).Error; err != nil {
@@ -253,21 +245,9 @@ func UpdateCustomerGuarantor(c *gin.Context) {
 		})
 		return
 	}
-	// Update the guarantor details
-	customerGuarantor := models.OCustomerGuarantor{
-		UID:              customerGuarantorInput.UID,
-		GuarantorName:    guarantorName,
-		CustomerId:       customerGuarantorInput.CustomerId,
-		NationalId:       nationalId,
-		MobileNo:         mobileNo,
-		PhysicalAddress:  physicalAddress,
-		AmountGuaranteed: customerGuarantorInput.AmountGuaranteed,
-		Relationship:     relationship,
-		Status:           status,
-	}
 
 	if err := db.Model(&models.OCustomerGuarantor{}).Where("uid = ?", customerGuarantorInput.UID).
-		Updates(&customerGuarantor).Error; err != nil {
+		Updates(&customerGuarantorInput).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{
 				"message": "Guarantor not found",
@@ -280,38 +260,20 @@ func UpdateCustomerGuarantor(c *gin.Context) {
 		return
 	}
 
-	// Identify modified fields
-	modifiedFields := utils.IdentifyModifiedFields(originalGuarantor, customerGuarantor, []string{"UID", "AddedDate"})
-
-	// Log the update event if there were any changes
-	var eventDetails string
-	if len(modifiedFields) > 0 {
-		var logMessages []string
-		for fieldName, values := range modifiedFields {
-			oldVal := values["old"]
-			newVal := values["new"]
-			logMessages = append(logMessages, fmt.Sprintf("%s changed from %+v to %+v", fieldName, oldVal, newVal))
-		}
-		eventDetails = fmt.Sprintf("Update triggered by %s [UID: %d]. Changes: %s", user.Name, userId, strings.Join(logMessages, ", "))
-
-	} else {
-		eventDetails = fmt.Sprintf("Update triggered by %s [UID: %d]. No values were modified", user.Name, userId)
-		fmt.Println("No fields were modified")
-	}
-
-	utils.LogEvent("o_customers", customerGuarantorInput.CustomerId, eventDetails, userId)
+	// log changes
+	utils.CreateChangesLog("update", "o_customers", "Guarantor", customerGuarantorInput.UID, customerGuarantorInput.CustomerId, originalGuarantor, customerGuarantorInput, user, []string{"UID", "AddedDate"})
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Customer guarantor updated successfully",
 		"data": gin.H{
-			"guarantorName":    customerGuarantor.GuarantorName,
-			"customerId":       customerGuarantor.CustomerId,
-			"nationalId":       customerGuarantor.NationalId,
-			"mobileNo":         customerGuarantor.MobileNo,
-			"physicalAddress":  customerGuarantor.PhysicalAddress,
-			"amountGuaranteed": customerGuarantor.AmountGuaranteed,
-			"relationship":     customerGuarantor.Relationship,
-			"status":           customerGuarantor.Status,
+			"guarantorName":    customerGuarantorInput.GuarantorName,
+			"customerId":       customerGuarantorInput.CustomerId,
+			"nationalId":       customerGuarantorInput.NationalId,
+			"mobileNo":         customerGuarantorInput.MobileNo,
+			"physicalAddress":  customerGuarantorInput.PhysicalAddress,
+			"amountGuaranteed": customerGuarantorInput.AmountGuaranteed,
+			"relationship":     customerGuarantorInput.Relationship,
+			"status":           customerGuarantorInput.Status,
 		},
 	})
 }

@@ -486,7 +486,7 @@ func UpdateCustomer(c *gin.Context) {
 	existingCustomer.DOB = existingCustomer.DOB[:10]
 
 	// log customer update
-	utils.CreateChangesLog("o_customers", "customer", customerId, customerId, "Update", existingCustomer, updateCustomerInput, user, []string{"UID", "CurrentAgent", "AddedBy", "Geolocation", "AddedDate", "EncPhone"})
+	utils.CreateChangesLog("update", "o_customers", "Customer", customerId, customerId, existingCustomer, updateCustomerInput, user, []string{"UID", "CurrentAgent", "AddedBy", "Geolocation", "AddedDate", "EncPhone"})
 
 	c.JSON(http.StatusOK, gin.H{
 		"status":  200,

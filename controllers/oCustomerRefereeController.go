@@ -236,7 +236,7 @@ func UpdateCustomerReferee(c *gin.Context) {
 		return
 	}
 
-	utils.CreateChangesLog("o_customers", "referee", refereeUID, customerUID, "Update", existingRefereeDetails, customerRefereeInput, user, []string{"UID", "AddedDate", "IdNo", "Status"})
+	utils.CreateChangesLog("update", "o_customers", "Referee", refereeUID, customerUID, existingRefereeDetails, customerRefereeInput, user, []string{"UID", "AddedDate", "IdNo", "Status"})
 
 	// send json response
 	c.JSON(200, gin.H{"message": "Referee updated successfully", "uid": refereeUID})

@@ -390,7 +390,7 @@ func UpdateCustomerContact(c *gin.Context) {
 	}
 
 	// log changes
-	utils.CreateChangesLog("o_customers", "contact", customerContactInput.UID, customerContactInput.CustomerID, "Update", originalContact, customerContactInput, user, []string{"UID", "EncPhone", "LastUpdate"})
+	utils.CreateChangesLog("update", "o_customers", "Contact", customerContactInput.UID, customerContactInput.CustomerID, originalContact, customerContactInput, user, []string{"UID", "EncPhone", "LastUpdate"})
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Customer contact updated successfully",

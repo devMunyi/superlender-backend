@@ -10,3 +10,6 @@ Restart=always
 
 [Install]
 WantedBy=multi-user.target
+
+
+https://call.pesaflow.co.ke/api/customer?customerName=daniel&phoneNumber=254701343758&nationalId=20300000&loanId=11&loanApplicationDate=2024-01-01&loanDefaultedDate=2024-02-02&loanBal=7000&agentEmail=dkamau146@gmail.com&branch=Juja&loanStatus=defaulted
